@@ -17,6 +17,7 @@
 // *****************************************************************************
 // =============================================================================
     #include <iostream>
+	#include <fstream> 
     #include "SDL_image.h"
     #include "reader_lcf.h"
     #include "lmu_reader.h"
@@ -40,8 +41,9 @@
         const char* map_path = argv[1];
         const char* chipset_path = argv[2];
         const char* output_path = argv[3];
-
-        std::unique_ptr<RPG::Map> map = LMU_Reader::Load(map_path, "");
+		std::ifstream mapstream(map_path, std::ios::ios_base::in | std::ios::ios_base::binary);
+        std::unique_ptr<RPG::Map> map = LMU_Reader::Load(mapstream, "");
+		mapstream.close();
         if (map.get() == NULL)
         {
             std::cerr<<LcfReader::GetError()<<std::endl;

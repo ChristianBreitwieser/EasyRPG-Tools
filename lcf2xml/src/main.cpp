@@ -36,7 +36,7 @@ enum FileTypes
 std::string GetFilename(const std::string& str);
 FileTypes GetFiletype(const std::string& in_file, std::string& out_extension);
 void PrintReaderError(const std::string data);
-int ReaderWriteToFile(const std::string& in, const std::string& out, FileTypes in_type);
+int ReaderWriteToFile(const std::string& in_filename, std::istream& in, std::ostream& out, FileTypes in_type);
 
 int main(int argc, char** argv)
 {
@@ -69,8 +69,36 @@ int main(int argc, char** argv)
 		type = GetFiletype(infile, extension);
 		outfile += extension;
 	}
+	
+	int inmode = std::ios::ios_base::in;
+	int outmode = std::ios::ios_base::out;
 
-	return ReaderWriteToFile(infile, outfile, type);
+	switch (type) {
+		case FileType_LCF_MapUnit:
+		case FileType_LCF_SaveData:
+		case FileType_LCF_Database:
+		case FileType_LCF_MapTree:
+			inmode |= std::ios::ios_base::binary;
+			break;
+		case FileType_XML_MapUnit:
+		case FileType_XML_SaveData:
+		case FileType_XML_Database:
+		case FileType_XML_MapTree:
+			outmode |= std::ios::ios_base::binary;
+			break;
+		case FileType_Invalid:
+		default:
+			//unsupported
+			break;
+	}
+
+	std::ifstream instream(infile, inmode);
+	std::ofstream outstream(outfile, outmode);
+
+	return ReaderWriteToFile(infile, instream, outstream, type);
+
+	instream.close();
+	outstream.close();
 }
 
 
@@ -179,13 +207,14 @@ void PrintReaderError(const std::string data)
 	}
 
 /** Takes data from in and writes converted data into out using liblcf. */
-int ReaderWriteToFile(const std::string& in, const std::string& out, FileTypes in_type)
+int ReaderWriteToFile(const std::string& in_filename, std::istream& in, std::ostream& out, FileTypes in_type)
 {
-	std::string path = GetPath(in) + "/";
+	std::string path = GetPath(in_filename) + "/";
 	std::string encoding = "";
 
 #ifdef _WIN32
-	encoding = ReaderUtil::GetEncoding(path + "RPG_RT.ini");
+	std::ifstream inistream(path + "RPG_RT.ini", std::ios::ios_base::in);
+	encoding = ReaderUtil::GetEncoding(inistream);
 #else
 	DIR* dir = opendir(path.c_str());
 	if (dir) {
@@ -197,7 +226,8 @@ int ReaderWriteToFile(const std::string& in, const std::string& out, FileTypes i
 			std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
 			if (name == "rpg_rt.ini") {
-				encoding = ReaderUtil::GetEncoding(path + ent->d_name);
+				std::ifstream inistream(path + ent->d_name, std::ios::ios_base::in);
+				encoding = ReaderUtil::GetEncoding(inistream);
 				closedir(dir);
 				goto dirsuccess;
 				break;
@@ -268,7 +298,7 @@ int ReaderWriteToFile(const std::string& in, const std::string& out, FileTypes i
 		}
 		case FileType_Invalid:
 		{
-			std::cerr << in << " unsupported" << std::endl;
+			std::cerr << in_filename << " unsupported" << std::endl;
 			return 2;
 		}
 	}
